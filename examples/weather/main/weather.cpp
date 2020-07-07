@@ -35,6 +35,8 @@
 #define SCREEN_WIDTH   EPD_WIDTH
 #define SCREEN_HEIGHT  EPD_HEIGHT
 
+struct tm timeinfo;
+
 
 //################  VERSION  ##################################################
 String version = "1.0 / 9.7in";     // Programme version, see change log at end
@@ -114,7 +116,7 @@ void DisplayMainWeatherSection(int x, int y);
 void DisplayDisplayWindSection(int x, int y, float angle, float windspeed, int Cradius);
 String WindDegToDirection(float winddirection);
 void DisplayTemperatureSection(int x, int y, int twidth, int tdepth);
-void DisplayForecastTextSection(int x, int y , int fwidth, int fdepth);
+void DisplayForecastTextSection(int x, int y, int fwidth, int fdepth);
 void DisplayForecastWeather(int x, int y, int index);
 void DisplayPressureSection(int x, int y, int pwidth, int pdepth, float pressure, String slope);
 void DisplayAstronomySection(int x, int y);
@@ -170,6 +172,17 @@ void setFont(GFXfont const&font);
 bool getRandomImage(WiFiClient & client);
 void drawImage(WiFiClient & client);
 bool decodeImage(WiFiClient& json);
+
+struct tm * firstDayOfMonth();
+void renderCalendar(int x, int y);
+int daysInMonth(struct tm timeT);
+
+
+// calendar
+#define CAL_SPACING_X           50
+#define CAL_SPACING_Y           32
+#define CAL_FEBRUARY            2
+#define CAL_CURRENT_DAY_Y_SHIFT 4
 
 
 void Delay(uint32_t millis) { vTaskDelay(millis / portTICK_PERIOD_MS); }
@@ -271,6 +284,7 @@ void setup() {
   
         //drawImage(client);
         DisplayWeather();
+        renderCalendar(820, 420);
         //DisplayTime();
 
         t1 = Millis();
@@ -563,7 +577,7 @@ void DisplayGeneralInfoSection() {
   setFont(OpenSans8B);
   drawString(4, 2, City, LEFT);
   // Uncomment the next line if the display of IP- and MAC-Adddress is wanted
-  //drawString(SCREEN_WIDTH - 150, 20, "IP=" + LocalIP + ",  MAC=" + WiFi.macAddress() ,RIGHT);
+  //drawString(SCREEN_WIDTH - 150, 20, "IP=" + LocalIP + ",  MAC=" + WiFi.macAddress(),RIGHT);
   drawLine(5, 30, SCREEN_WIDTH - 8, 30, 0xAA);
   drawString(200, 2, Date_str, LEFT);
   drawString(400, 2, TXT_UPDATED + Time_str, LEFT);
@@ -640,7 +654,7 @@ void DisplayTemperatureSection(int x, int y, int twidth, int tdepth) {
   drawString(x, y + 40, String(WxConditions[0].High, 0) + "° | " + String(WxConditions[0].Low, 0) + "°", CENTER); // Show forecast high and Low
 }
 
-void DisplayForecastTextSection(int x, int y , int fwidth, int fdepth) {
+void DisplayForecastTextSection(int x, int y, int fwidth, int fdepth) {
   String Wx_Description;
   setFont(OpenSans24/*18*/);
   if (Language == "DE")
@@ -856,7 +870,6 @@ void DrawRSSI(int x, int y, int rssi) {
 }
 
 boolean UpdateLocalTime() {
-  struct tm timeinfo;
   char   time_output[30], day_output[30], update_time[30];
   while (!getLocalTime(&timeinfo, 5000)) { // Wait for 5-sec for time to synchronise
     Serial.println("Failed to obtain time");
@@ -925,10 +938,10 @@ void addcloud(int x, int y, int scale, int linesize) {
 
 void addraindrop(int x, int y, int scale) {
   fillCircle(x, y, scale / 2, GxEPD_BLACK);
-  fillTriangle(x - scale / 2, y, x, y - scale * 1.2, x + scale / 2, y , GxEPD_BLACK);
+  fillTriangle(x - scale / 2, y, x, y - scale * 1.2, x + scale / 2, y, GxEPD_BLACK);
   x = x + scale * 1.6; y = y + scale / 3;
   fillCircle(x, y, scale / 2, GxEPD_BLACK);
-  fillTriangle(x - scale / 2, y, x, y - scale * 1.2, x + scale / 2, y , GxEPD_BLACK);
+  fillTriangle(x - scale / 2, y, x, y - scale * 1.2, x + scale / 2, y, GxEPD_BLACK);
 }
 
 void addrain(int x, int y, int scale, bool IconSize) {
@@ -1341,6 +1354,88 @@ void ReportEvent(String EventMessage[]) {
     default : AddToEventLog("Unknown reason");
   }
 }*/
+
+// Calculate a timestamp representing the first day in the month ..
+struct tm * firstDayOfMonth() {
+
+  struct tm tm = timeinfo;
+  tm.tm_mday = 1;
+
+  /*struct tm tm;
+  tm.tm_hour = hour(timeT);
+  tm.tm_mnute = minute(timeT);
+  tm.tm_second = second(timeT);
+  tm.tm_day = 1;
+  tm.tm_month = month(timeT);
+  tm.tm_year = year(timeT) - 1970;*/
+
+  time_t fom = mktime(&tm);
+  return localtime(&fom);
+
+}
+
+int daysInMonth(struct tm timeT) {
+
+  int days[] = {31,28,31,30,31,30,31,31,30,31,30,31};
+  int year = timeT.tm_year + 1900;
+  return ((timeT.tm_mon + 1) == CAL_FEBRUARY ? (year%4  == 0 ? 
+    (year%100 != 0 ? 29 : (year%400 == 0 ? 29 : 28)) : 28) : days[timeT.tm_mon]);
+
+}
+
+// Render a calendar ..
+void renderCalendar(int x, int y) {
+  struct tm *fdom = firstDayOfMonth();
+
+  setFont(OpenSans12B);  
+  String months[] = {"January","February","March","April","May","June","July","August","September","October","November","December"};
+  drawString(x + CAL_SPACING_X * 2, y, months[fdom->tm_mon] + "  " + String((fdom->tm_year + 1900)), LEFT);
+  
+  y += CAL_SPACING_Y * 1.5;
+  drawString(x, y, "Mo", CENTER);
+  drawString(x + (1 * CAL_SPACING_X), y, "Tu", CENTER);
+  drawString(x + (2 * CAL_SPACING_X), y, "We", CENTER);
+  drawString(x + (3 * CAL_SPACING_X), y, "Th", CENTER);
+  drawString(x + (4 * CAL_SPACING_X), y, "Fr", CENTER);
+  drawString(x + (5 * CAL_SPACING_X), y, "Sa", CENTER);
+  drawString(x + (6 * CAL_SPACING_X), y, "Su", CENTER);
+
+  int dayOfMonth = 1;
+
+  int dow = (fdom->tm_wday + 6) % 7;
+  int maxDays = daysInMonth(timeinfo);
+  int spacing_Y = CAL_SPACING_Y;
+
+
+  // Render first row of days, this may be less than seven days depending on when the first day of the month is ..
+  int yShift = 0;  
+  for (int col = dow; col < 7; col++) {
+    if (timeinfo.tm_mday == dayOfMonth) {
+      setFont(OpenSans16B);
+      yShift = CAL_CURRENT_DAY_Y_SHIFT;
+    } else {
+      setFont(OpenSans12);
+      yShift = 0;
+    }
+    drawString(x + (col * CAL_SPACING_X), y + spacing_Y - yShift, String(dayOfMonth),  CENTER);
+    dayOfMonth++;
+  }
+
+  // Render remaining rows.  If the month happens to span 6 rows handle it according to the CAL_SHOW_6_ROWS_OF_DAYS value ..
+  for (int row = 2; row <= 6 && dayOfMonth <= maxDays; row++) {
+    for (int col = 0; col < 7 && dayOfMonth <= maxDays; col++) {
+      if (timeinfo.tm_mday == dayOfMonth) {
+        setFont(OpenSans16B);
+        yShift = CAL_CURRENT_DAY_Y_SHIFT;
+      } else {
+        setFont(OpenSans12);
+        yShift = 0;
+      }
+      drawString(x + (col * CAL_SPACING_X)  -1, y + (row * spacing_Y) - yShift, String(dayOfMonth), CENTER);
+      dayOfMonth++;
+    }
+  }
+}
 
 void DisplayTime() {
   drawString(850, 510, "16:00", CENTER);
