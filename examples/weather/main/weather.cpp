@@ -336,10 +336,22 @@ void Convert_Readings_to_Imperial() {
   WxForecast[1].Snowfall   = mm_to_inches(WxForecast[1].Snowfall);
 }
 
+struct HeapCapsAllocator {
+  void* allocate(size_t n) {
+    return heap_caps_malloc(n, MALLOC_CAP_SPIRAM);
+  }
+
+  void deallocate(void* p) {
+    heap_caps_free(p);
+  }
+};
+
+typedef BasicJsonDocument<HeapCapsAllocator> HeapCapsJsonDocument;
+
 bool DecodeWeather(WiFiClient& json, String Type) {
   Serial.print(F("\nCreating object...and "));
   // allocate the JsonDocument
-  DynamicJsonDocument doc(64 * 1024);
+  HeapCapsJsonDocument doc(128 * 1024);
   // Deserialize the JSON document
   DeserializationError error = deserializeJson(doc, json);
   // Test if parsing succeeds.
