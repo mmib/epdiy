@@ -64,7 +64,8 @@ const byte EventThreshold = 2; // Change to 1 to view all messages on e-paper sc
 int        wifi_signal, CurrentHour = 0, CurrentMin = 0, CurrentSec = 0, EventCnt = 0;
 
 //################ PROGRAM VARIABLES and OBJECTS ##########################################
-#define max_readings 8
+#define max_readings 12
+#define forecast_size 8
 
 Forecast_record_type  WxConditions[1];
 Forecast_record_type  WxForecast[max_readings];
@@ -116,7 +117,6 @@ void DisplayMainWeatherSection(int x, int y);
 void DisplayDisplayWindSection(int x, int y, float angle, float windspeed, int Cradius);
 String WindDegToDirection(float winddirection);
 void DisplayTemperatureSection(int x, int y, int twidth, int tdepth);
-void DisplayForecastTextSection(int x, int y, int fwidth, int fdepth);
 void DisplayForecastWeather(int x, int y, int index);
 void DisplayPressureSection(int x, int y, int pwidth, int pdepth, float pressure, String slope);
 void DisplayAstronomySection(int x, int y);
@@ -179,10 +179,10 @@ int daysInMonth(struct tm timeT);
 
 
 // calendar
-#define CAL_SPACING_X           50
-#define CAL_SPACING_Y           32
+#define CAL_SPACING_X           64
+#define CAL_SPACING_Y           42
 #define CAL_FEBRUARY            2
-#define CAL_CURRENT_DAY_Y_SHIFT 4
+#define CAL_CURRENT_DAY_Y_SHIFT 6
 
 
 void Delay(uint32_t millis) { vTaskDelay(millis / portTICK_PERIOD_MS); }
@@ -284,7 +284,7 @@ void setup() {
   
         //drawImage(client);
         DisplayWeather();
-        renderCalendar(820, 420);
+        renderCalendar(770, 470);
         //DisplayTime();
 
         t1 = Millis();
@@ -353,12 +353,6 @@ bool DecodeWeather(WiFiClient& json, String Type) {
   Serial.println(" Decoding " + Type + " data");
   if (Type == "weather") {
     // All Serial.println statements are for diagnostic purposes and not required, remove if not needed
-    WxConditions[0].lon         = root["coord"]["lon"].as<float>();              Serial.println(" Lon: "+String(WxConditions[0].lon));
-    WxConditions[0].lat         = root["coord"]["lat"].as<float>();              Serial.println(" Lat: "+String(WxConditions[0].lat));
-    WxConditions[0].Main0       = root["weather"][0]["main"].as<char*>();        Serial.println("Main: "+String(WxConditions[0].Main0));
-    WxConditions[0].Forecast0   = root["weather"][0]["description"].as<char*>(); Serial.println("For0: "+String(WxConditions[0].Forecast0));
-    WxConditions[0].Forecast1   = root["weather"][1]["description"].as<char*>(); Serial.println("For1: "+String(WxConditions[0].Forecast1));
-    WxConditions[0].Forecast2   = root["weather"][2]["description"].as<char*>(); Serial.println("For2: "+String(WxConditions[0].Forecast2));
     WxConditions[0].Icon        = root["weather"][0]["icon"].as<char*>();        Serial.println("Icon: "+String(WxConditions[0].Icon));
     WxConditions[0].Temperature = root["main"]["temp"].as<float>();              Serial.println("Temp: "+String(WxConditions[0].Temperature));
     WxConditions[0].Pressure    = root["main"]["pressure"].as<float>();          Serial.println("Pres: "+String(WxConditions[0].Pressure));
@@ -371,7 +365,6 @@ bool DecodeWeather(WiFiClient& json, String Type) {
     WxConditions[0].Visibility  = root["visibility"].as<int>();                  Serial.println("Visi: "+String(WxConditions[0].Visibility)); // in metres
     WxConditions[0].Rainfall    = root["rain"]["1h"].as<float>();                Serial.println("Rain: "+String(WxConditions[0].Rainfall));
     WxConditions[0].Snowfall    = root["snow"]["1h"].as<float>();                Serial.println("Snow: "+String(WxConditions[0].Snowfall));
-    WxConditions[0].Country     = root["sys"]["country"].as<char*>();            Serial.println("Ctry: "+String(WxConditions[0].Country));
     WxConditions[0].Sunrise     = root["sys"]["sunrise"].as<int>();              Serial.println("SRis: "+String(WxConditions[0].Sunrise));
     WxConditions[0].Sunset      = root["sys"]["sunset"].as<int>();               Serial.println("SSet: "+String(WxConditions[0].Sunset));
     WxConditions[0].Timezone    = root["timezone"].as<int>();                    Serial.println("TZon: "+String(WxConditions[0].Timezone));  }
@@ -386,12 +379,8 @@ bool DecodeWeather(WiFiClient& json, String Type) {
       WxForecast[r].Low               = list[r]["main"]["temp_min"].as<float>();          Serial.println("TLow: "+String(WxForecast[r].Low));
       WxForecast[r].High              = list[r]["main"]["temp_max"].as<float>();          Serial.println("THig: "+String(WxForecast[r].High));
       WxForecast[r].Pressure          = list[r]["main"]["pressure"].as<float>();          Serial.println("Pres: "+String(WxForecast[r].Pressure));
-      WxForecast[r].Humidity          = list[r]["main"]["humidity"].as<float>();          Serial.println("Humi: "+String(WxForecast[r].Humidity));
-      WxForecast[r].Forecast0         = list[r]["weather"][0]["main"].as<char*>();        Serial.println("For0: "+String(WxForecast[r].Forecast0));
-      WxForecast[r].Forecast1         = list[r]["weather"][1]["main"].as<char*>();        Serial.println("For1: "+String(WxForecast[r].Forecast1));
-      WxForecast[r].Forecast2         = list[r]["weather"][2]["main"].as<char*>();        Serial.println("For2: "+String(WxForecast[r].Forecast2));
+      WxForecast[r].Humidity          = list[r]["main"]["humidity"].as<float>();          Serial.println("Humi: "+String(WxForecast[r].Humidity));      
       WxForecast[r].Icon              = list[r]["weather"][0]["icon"].as<char*>();        Serial.println("Icon: "+String(WxForecast[r].Icon));
-      WxForecast[r].Description       = list[r]["weather"][0]["description"].as<char*>(); Serial.println("Desc: "+String(WxForecast[r].Description));
       WxForecast[r].Cloudcover        = list[r]["clouds"]["all"].as<int>();               Serial.println("CCov: "+String(WxForecast[r].Cloudcover)); // in % of cloud cover
       WxForecast[r].Windspeed         = list[r]["wind"]["speed"].as<float>();             Serial.println("WSpd: "+String(WxForecast[r].Windspeed));
       WxForecast[r].Winddir           = list[r]["wind"]["deg"].as<float>();               Serial.println("WDir: "+String(WxForecast[r].Winddir));
@@ -566,10 +555,10 @@ void DisplayWeather() {                          // 9.7" e-paper display is 1200
     DisplayStatusSection(990, 20, wifi_signal); // Wi-Fi signal strength and Battery voltage
     DisplayGeneralInfoSection();                 // Top line of the display
 
-    DisplayDisplayWindSection(1000, 210, WxConditions[0].Winddir, WxConditions[0].Windspeed, 130);
-    DisplayAstronomySection(920, 720);             // Astronomy section Sun rise/set, Moon phase and Moon icon
+    DisplayDisplayWindSection(1040, 210, WxConditions[0].Winddir, WxConditions[0].Windspeed, 130);
+    DisplayAstronomySection(550, 200);             // Astronomy section Sun rise/set, Moon phase and Moon icon
     DisplayMainWeatherSection(137, 130);          // Centre section of display for Location, temperature, Weather report, current Wx Symbol and wind direction    
-    DisplayForecastSection(10, 330);             // 3hr forecast boxes
+    DisplayForecastSection(4, 330);             // 3hr forecast boxes
 }
 
 
@@ -588,7 +577,6 @@ void DisplayMainWeatherSection(int x, int y) {  // (x=500, y=190)
   DisplayTemperatureSection(x + 230, y - 30, 180, 170);
   DisplayPressureSection(x + 160, y + 70, 180, 170,  WxConditions[0].Pressure, WxConditions[0].Trend);
   DisplayPrecipitationSection(x + 268, y - 8, 181, 170);
-  //DisplayForecastTextSection(x + 147, y + 22, 548, 90);
 }
 
 void DisplayDisplayWindSection(int x, int y, float angle, float windspeed, int Cradius) {
@@ -654,23 +642,6 @@ void DisplayTemperatureSection(int x, int y, int twidth, int tdepth) {
   drawString(x, y + 40, String(WxConditions[0].High, 0) + "° | " + String(WxConditions[0].Low, 0) + "°", CENTER); // Show forecast high and Low
 }
 
-void DisplayForecastTextSection(int x, int y, int fwidth, int fdepth) {
-  String Wx_Description;
-  setFont(OpenSans24/*18*/);
-  if (Language == "DE")
-    Wx_Description = WxConditions[0].Forecast0;
-  else {
-    Wx_Description = WxConditions[0].Main0;
-    if (WxConditions[0].Forecast0 != "") Wx_Description += " (" + WxConditions[0].Forecast0;
-  }
-  if (WxConditions[0].Forecast1 != "") Wx_Description += ", " + WxConditions[0].Forecast1;
-  if (WxConditions[0].Forecast2 != "") Wx_Description += ", " + WxConditions[0].Forecast2;
-  if (Wx_Description.indexOf("(") > 0) Wx_Description += ")";
-  int MsgWidth = 43; // Using proportional fonts, so be aware of making it too wide!
-  if (Language == "DE") drawStringMaxWidth(x + 30, y + 40, MsgWidth, Wx_Description, LEFT); // Leave German text in original format, 28 character screen width at this font size
-  else                  drawStringMaxWidth(x + 30, y + 40, MsgWidth, TitleCase(Wx_Description), LEFT); // 28 character screen width at this font size
-}
-
 void DisplayPressureSection(int x, int y, int pwidth, int pdepth, float pressure, String slope) {
   pressure = pressure * 0.750062; //convert to mmhg
   setFont(OpenSans12/*24b*/);
@@ -684,6 +655,8 @@ void DisplayForecastWeather(int x, int y, int index) {
   setFont(OpenSans8B);
   drawString(x + fwidth / 2 - 10, y + 30, String(WxForecast[index].Period.substring(11, 16)), CENTER);
   drawString(x + fwidth / 2 + 0, y + 130, String(WxForecast[index].High, 0) + "°/" + String(WxForecast[index].Low, 0) + "°", CENTER);
+  setFont(OpenSans8);
+  drawString(x + fwidth / 2 + 0, y + 148, String(WxForecast[index].Windspeed, 1) + " " + WindDegToDirection(WxConditions[index].Winddir), CENTER);
 }
 
 void DisplayPrecipitationSection(int x, int y, int pwidth, int pdepth) {
@@ -699,15 +672,15 @@ void DisplayPrecipitationSection(int x, int y, int pwidth, int pdepth) {
 
 void DisplayAstronomySection(int x, int y) {
   setFont(OpenSans12B);
-  drawString(x + 14, y + 34, ConvertUnixTime(WxConditions[0].Sunrise).substring(0, 5) + " " + TXT_SUNRISE, LEFT);
-  drawString(x + 14, y + 64, ConvertUnixTime(WxConditions[0].Sunset).substring(0, 5) + " " + TXT_SUNSET, LEFT);
+  drawString(x + 14, y + 34, ConvertUnixTime(WxConditions[0].Sunrise).substring(0, 5), LEFT);
+  drawString(x + 14, y + 64, ConvertUnixTime(WxConditions[0].Sunset).substring(0, 5), LEFT);
   time_t now = time(NULL);
   struct tm * now_utc  = gmtime(&now);
   const int day_utc = now_utc->tm_mday;
   const int month_utc = now_utc->tm_mon + 1;
   const int year_utc = now_utc->tm_year + 1900;
   //drawString(x + 14, y + 94, MoonPhase(day_utc, month_utc, year_utc, Hemisphere), LEFT);
-  DrawMoon(x + 155, y - 20, day_utc, month_utc, year_utc, Hemisphere);
+  DrawMoon(x + 70, y - 20, day_utc, month_utc, year_utc, Hemisphere);
 }
 
 void DrawMoon(int x, int y, int dd, int mm, int yy, String hemisphere) {
@@ -781,7 +754,7 @@ void DisplayForecastSection(int x, int y) {
   do {
     DisplayForecastWeather(x, y, f);
     f++;
-  } while (f < max_readings);
+  } while (f < forecast_size);
   // Pre-load temporary arrays with with data - because C parses by reference
   int r = 1;
   do {
@@ -1257,8 +1230,8 @@ void DrawGraph(int x_pos, int y_pos, int gwidth, int gheight, float Y1Min, float
       }   
     }
   }
-  for (int i = 0; i <= 2; i++) {
-    drawString(5 + x_pos + gwidth / 3 * i, y_pos + gheight + 10, String(i)+"d", LEFT);
+  for (int i = 1; i <= 3; i++) {
+    drawString(5 + x_pos + gwidth / 3 * i, y_pos + gheight + 10, String(i*12)+"h", RIGHT);
   }
   //drawString(x_pos + gwidth / 2, y_pos + gheight + 25, TXT_DAYS, CENTER);
 }
@@ -1387,7 +1360,7 @@ int daysInMonth(struct tm timeT) {
 void renderCalendar(int x, int y) {
   struct tm *fdom = firstDayOfMonth();
 
-  setFont(OpenSans12B);  
+  setFont(OpenSans16B);  
   String months[] = {"January","February","March","April","May","June","July","August","September","October","November","December"};
   drawString(x + CAL_SPACING_X * 2, y, months[fdom->tm_mon] + "  " + String((fdom->tm_year + 1900)), LEFT);
   
@@ -1411,10 +1384,10 @@ void renderCalendar(int x, int y) {
   int yShift = 0;  
   for (int col = dow; col < 7; col++) {
     if (timeinfo.tm_mday == dayOfMonth) {
-      setFont(OpenSans16B);
+      setFont(OpenSans24B);
       yShift = CAL_CURRENT_DAY_Y_SHIFT;
     } else {
-      setFont(OpenSans12);
+      setFont(OpenSans16);
       yShift = 0;
     }
     drawString(x + (col * CAL_SPACING_X), y + spacing_Y - yShift, String(dayOfMonth),  CENTER);
@@ -1425,10 +1398,10 @@ void renderCalendar(int x, int y) {
   for (int row = 2; row <= 6 && dayOfMonth <= maxDays; row++) {
     for (int col = 0; col < 7 && dayOfMonth <= maxDays; col++) {
       if (timeinfo.tm_mday == dayOfMonth) {
-        setFont(OpenSans16B);
+        setFont(OpenSans24B);
         yShift = CAL_CURRENT_DAY_Y_SHIFT;
       } else {
-        setFont(OpenSans12);
+        setFont(OpenSans16);
         yShift = 0;
       }
       drawString(x + (col * CAL_SPACING_X)  -1, y + (row * spacing_Y) - yShift, String(dayOfMonth), CENTER);
